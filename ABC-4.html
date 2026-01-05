@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>字母數字顯示器</title>
+    <script src="https://cdn.jsdelivr.net/npm/brython@3/brython.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/brython@3/brython_stdlib.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+        .input-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .button-group {
+            text-align: center;
+            margin: 15px 0;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: white;
+            font-size: 14px;
+        }
+        .example-btn { background-color: #45B7D1; }
+        .display-btn { background-color: #4ECDC4; }
+        .clear-btn { background-color: #FF6B6B; }
+        input[type="text"] {
+            padding: 8px;
+            font-size: 16px;
+            width: 300px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+            color: #555;
+        }
+        .display-container {
+            max-height: 500px;
+            overflow: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: white;
+        }
+    </style>
+</head>
+<body onload="brython()">
+    <div class="container">
+        <h1>字母數字顯示器</h1>
+        <p style="text-align: center; color: #666;">
+            輸入英文字母或數字（大小寫有不同設計），程式會用彩色方塊顯示7x7細明體風格字體
+        </p>
+        
+        <div class="input-group">
+            <input type="text" id="textInput" placeholder="輸入字母或數字...">
+            <button class="display-btn" id="displayBtn">顯示</button>
+            <button class="clear-btn" id="clearBtn">清除</button>
+        </div>
+
+        <div class="section">
+            <div class="section-title">快速範例</div>
+            <div class="button-group">
+                <button class="example-btn" data-text="ABC">ABC</button>
+                <button class="example-btn" data-text="abc">abc</button>
+                <button class="example-btn" data-text="AaBbCc">AaBbCc</button>
+                <button class="example-btn" data-text="CP2025">CP2025</button>
+                <button class="example-btn" data-text="NFU">NFU</button>
+                <button class="example-btn" data-text="Hello">Hello</button>
+                <button class="example-btn" data-text="Python">Python</button>
+                <button class="example-btn" data-text="code">code</button>
+                <button class="example-btn" data-text="A strict teacher produces excellent students">A strict teacher produces excellent students</button>
+            </div>
+        </div>
+
+        <div class="display-container" id="brython_div1"></div>
+    </div>
+
+    <script type="text/python">
+from browser import document, html, timer
+
+CELL_SIZE = 12
+MAX_LETTERS_PER_LINE = 12  # 一行最多12個字母
+LETTER_WIDTH = 8  # 每個字母佔8格（7格字母 + 1格間距）
+SPACE_WIDTH = 8   # 空格佔8格
+
+# ------------------ 7x7 字母點陣定義（細明體風格，線條粗一格） ------------------
+LETTER_PATTERNS = {
+    # 大寫字母
+    'A': ["0011100","0110110","1100011","1100011","1111111","1100011","1100011"],
+    'B': ["1111110","1100011","1100011","1111110","1100011","1100011","1111110"],
+    'C': ["0111110","1100011","1100000","1100000","1100000","1100011","0111110"],
+    'D': ["1111100","1100110","1100011","1100011","1100011","1100110","1111100"],
+    'E': ["1111111","1100000","1100000","1111100","1100000","1100000","1111111"],
+    'F': ["1111111","1100000","1100000","1111100","1100000","1100000","1100000"],
+    'G': ["0111110","1100011","1100000","1101111","1100011","1100011","0111110"],
+    'H': ["1100011","1100011","1100011","1111111","1100011","1100011","1100011"],
+    'I': ["0111110","0001000","0001000","0001000","0001000","0001000","0111110"],
+    'J': ["0011111","0001100","0001100","0001100","0001100","1101100","0111000"],
+    'K': ["1100011","1100110","1101100","1111000","1101100","1100110","1100011"],
+    'L': ["1100000","1100000","1100000","1100000","1100000","1100000","1111111"],
+    'M': ["1100011","1110111","1111111","1101011","1100011","1100011","1100011"],
+    'N': ["1100011","1110011","1111011","1101111","1100111","1100011","1100011"],
+    'O': ["0111110","1100011","1100011","1100011","1100011","1100011","0111110"],
+    'P': ["1111110","1100011","1100011","1111110","1100000","1100000","1100000"],
+    'Q': ["0111110","1100011","1100011","1100011","1101011","1100110","0111101"],
+    'R': ["1111110","1100011","1100011","1111110","1101100","1100110","1100011"],
+    'S': ["0111110","1100011","1100000","0111110","0000011","1100011","0111110"],
+    'T': ["1111111","0011000","0011000","0011000","0011000","0011000","0011000"],
+    'U': ["1100011","1100011","1100011","1100011","1100011","1100011","0111110"],
+    'V': ["1100011","1100011","1100011","1100011","0110110","0011100","0001000"],
+    'W': ["1100011","1100011","1100011","1101011","1111111","1110111","1100011"],
+    'X': ["1100011","0110110","0011100","0001000","0011100","0110110","1100011"],
+    'Y': ["1100011","0110110","0011100","0001000","0001000","0001000","0001000"],
+    'Z': ["1111111","0000110","0001100","0011000","0110000","1100000","1111111"],
+    
+    # 小寫字母（獨特設計，比例較小）
+    'a': ["0000000","0000000","0111100","0000110","0111110","1100110","0111011"],
+    'b': ["1100000","1100000","1101100","1110110","1100011","1100011","1111110"],
+    'c': ["0000000","0000000","0111110","1100011","1100000","1100011","0111110"],
+    'd': ["0000011","0000011","0011011","0110111","1100011","1100011","0111111"],
+    'e': ["0000000","0000000","0111110","1100011","1111111","1100000","0111110"],
+    'f': ["0011110","0110011","0110000","1111100","0110000","0110000","0110000"],
+    'g': ["0000000","0111011","1100110","1100110","0111110","0000110","0111100"],
+    'h': ["1100000","1100000","1101100","1110110","1100011","1100011","1100011"],
+    'i': ["0011000","0000000","0111000","0011000","0011000","0011000","0111100"],
+    'j': ["0001100","0000000","0011100","0001100","0001100","1101100","0111000"],
+    'k': ["1100000","1100000","1100110","1101100","1111000","1101100","1100110"],
+    'l': ["0111000","0011000","0011000","0011000","0011000","0011000","0111100"],
+    'm': ["0000000","0000000","1110110","1111111","1101011","1100011","1100011"],
+    'n': ["0000000","0000000","1101100","1110110","1100011","1100011","1100011"],
+    'o': ["0000000","0000000","0111110","1100011","1100011","1100011","0111110"],
+    'p': ["0000000","0000000","1101100","1110110","1100011","1111110","1100000"],
+    'q': ["0000000","0000000","0011011","0110111","1100011","0111111","0000011"],
+    'r': ["0000000","0000000","1101110","1110011","1100000","1100000","1100000"],
+    's': ["0000000","0000000","0111110","1100000","0111110","0000011","1111110"],
+    't': ["0110000","0110000","1111100","0110000","0110000","0110011","0011110"],
+    'u': ["0000000","0000000","1100011","1100011","1100011","1100111","0111011"],
+    'v': ["0000000","0000000","1100011","1100011","1100011","0110110","0011100"],
+    'w': ["0000000","0000000","1100011","1100011","1101011","1111111","0110110"],
+    'x': ["0000000","0000000","1100011","0110110","0011100","0110110","1100011"],
+    'y': ["0000000","0000000","1100011","1100011","0111110","0000110","0111100"],
+    'z': ["0000000","0000000","1111111","0000110","0011100","0110000","1111111"],
+    
+    # 數字
+    '0': ["0111110","1100011","1100111","1101011","1110011","1100011","0111110"],
+    '1': ["0011000","0111000","0011000","0011000","0011000","0011000","0111110"],
+    '2': ["0111110","1100011","0000011","0001110","0111000","1100000","1111111"],
+    '3': ["1111110","0000011","0000011","0011110","0000011","0000011","1111110"],
+    '4': ["1100011","1100011","1100011","1111111","0000011","0000011","0000011"],
+    '5': ["1111111","1100000","1100000","1111110","0000011","0000011","1111110"],
+    '6': ["0111110","1100000","1100000","1111110","1100011","1100011","0111110"],
+    '7': ["1111111","0000011","0000110","0001100","0011000","0011000","0011000"],
+    '8': ["0111110","1100011","1100011","0111110","1100011","1100011","0111110"],
+    '9': ["0111110","1100011","1100011","0111111","0000011","0000011","0111110"],
+    ' ': ["0000000","0000000","0000000","0000000","0000000","0000000","0000000"]
+}
+
+# ------------------ 世界 ------------------
+class World:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.layers = {
+            "grid": html.CANVAS(width=self.width*CELL_SIZE, height=self.height*CELL_SIZE),
+            "background": html.CANVAS(width=self.width*CELL_SIZE, height=self.height*CELL_SIZE),
+            "display": html.CANVAS(width=self.width*CELL_SIZE, height=self.height*CELL_SIZE),
+        }
+        self._init_html()
+        self._draw_grid()
+        self._draw_background()
+
+    def _init_html(self):
+        container = html.DIV(style={
+            "position": "relative",
+            "width": f"{self.width*CELL_SIZE}px",
+            "height": f"{self.height*CELL_SIZE}px",
+            "border": "2px solid #000",
+            "margin": "10px auto",
+            "background": "white"
+        })
+        for z, key in enumerate(["grid", "background", "display"]):
+            canvas = self.layers[key]
+            canvas.style = {"position":"absolute","top":"0px","left":"0px","zIndex":str(z)}
+            container <= canvas
+        return container
+
+    def _draw_grid(self):
+        ctx = self.layers["grid"].getContext("2d")
+        ctx.strokeStyle = "#f0f0f0"
+        ctx.lineWidth = 1
+        for i in range(self.width+1):
+            ctx.beginPath()
+            ctx.moveTo(i*CELL_SIZE,0)
+            ctx.lineTo(i*CELL_SIZE,self.height*CELL_SIZE)
+            ctx.stroke()
+        for j in range(self.height+1):
+            ctx.beginPath()
+            ctx.moveTo(0,j*CELL_SIZE)
+            ctx.lineTo(self.width*CELL_SIZE,j*CELL_SIZE)
+            ctx.stroke()
+
+    def _draw_background(self):
+        ctx = self.layers["background"].getContext("2d")
+        ctx.fillStyle = "white"
+        ctx.fillRect(0, 0, self.width*CELL_SIZE, self.height*CELL_SIZE)
+
+    def draw_color_block(self, x, y, color):
+        ctx = self.layers["display"].getContext("2d")
+        ctx.fillStyle = color
+        ctx.fillRect(x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE)
+        
+        # 添加邊框
+        ctx.strokeStyle = "#333"
+        ctx.lineWidth = 1
+        ctx.strokeRect(x*CELL_SIZE, y*CELL_SIZE, CELL_SIZE, CELL_SIZE)
+
+    def clear_display(self):
+        ctx = self.layers["display"].getContext("2d")
+        ctx.clearRect(0, 0, self.width*CELL_SIZE, self.height*CELL_SIZE)
+
+# ------------------ 主程式 ------------------
+class LetterDisplay:
+    def __init__(self):
+        self.world = None
+        self.colors = [
+            "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", 
+            "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7DC6F",
+            "#FF9FF3", "#54A0FF", "#5F27CD", "#00D2D3",
+            "#FF9F43", "#10AC84"
+        ]
+        self.display_container = None
+        
+    def setup_world(self, text):
+        # 分割文本为单词
+        words = text.split(' ')
+        
+        # 计算世界大小
+        max_line_width = 0
+        current_line_width = 0
+        line_count = 1
+        
+        for word in words:
+            # 计算单词长度（字母数量）
+            word_letter_count = len(word)
+            
+            # 检查当前行是否能容纳这个单词
+            if current_line_width + word_letter_count > MAX_LETTERS_PER_LINE:
+                # 需要换行
+                line_count += 1
+                current_line_width = word_letter_count
+            else:
+                # 可以放在当前行
+                if current_line_width > 0:
+                    current_line_width += 1  # 单词间空格
+                current_line_width += word_letter_count
+            
+            max_line_width = max(max_line_width, current_line_width)
+        
+        # 设置世界大小 - 一行最多12个字母
+        world_width = MAX_LETTERS_PER_LINE * LETTER_WIDTH
+        world_height = line_count * 7  # 每行7格高
+        
+        self.world = World(world_width, world_height)
+        
+    def display_text(self, text):
+        if not text:
+            # 如果文字為空，清除顯示
+            if self.world:
+                self.world.clear_display()
+            return
+            
+        # 保留原始大小寫，分別處理
+        self.setup_world(text)
+        
+        # 清除之前的顯示
+        if self.display_container:
+            self.display_container.remove()
+            
+        self.display_container = self.world._init_html()
+        document["brython_div1"] <= self.display_container
+        
+        self.world.clear_display()
+        
+        # 分割文本为单词
+        words = text.split(' ')
+        
+        # 当前绘制位置
+        current_x = 0
+        current_y = 0
+        current_line_letters = 0
+        color_index = 0
+        
+        for word in words:
+            word_letter_count = len(word)
+            
+            # 检查当前行是否能容纳这个单词
+            if current_line_letters + word_letter_count > MAX_LETTERS_PER_LINE:
+                # 需要换行
+                current_x = 0
+                current_y += 7
+                current_line_letters = 0
+            
+            # 绘制单词
+            self._draw_word(word, current_x, current_y, color_index)
+            
+            # 更新位置
+            current_x += word_letter_count * LETTER_WIDTH
+            current_line_letters += word_letter_count
+            
+            # 如果不是最后一个单词，添加空格
+            if word != words[-1]:
+                current_x += SPACE_WIDTH
+                current_line_letters += 1  # 空格也算一个位置
+            
+            color_index += 1
+    
+    def _draw_word(self, word, start_x, start_y, color_index):
+        # 绘制单词中的所有字母
+        for i, char in enumerate(word):
+            if char in LETTER_PATTERNS:
+                pattern = LETTER_PATTERNS[char]
+                # 每个字母占7格，加上1格间距
+                base_x = start_x + i * LETTER_WIDTH
+                color = self.colors[color_index % len(self.colors)]
+                
+                # 绘制字母的所有点
+                for y in range(7):
+                    for x in range(7):
+                        if pattern[y][x] == '1':
+                            self.world.draw_color_block(base_x + x, start_y + y, color)
+
+# ------------------ 初始化 ------------------
+display = LetterDisplay()
+
+# 綁定按鈕事件
+def bind_buttons():
+    # 顯示按鈕
+    def on_display_click(ev):
+        text = document["textInput"].value.strip()
+        if text:
+            display.display_text(text)
+    
+    # 清除按鈕
+    def on_clear_click(ev):
+        document["textInput"].value = ""
+        display.display_text("")
+    
+    # 範例按鈕
+    def on_example_click(ev):
+        text = ev.target.attrs.get("data-text", "")
+        document["textInput"].value = text
+        display.display_text(text)
+    
+    # 綁定主要按鈕
+    document["displayBtn"].bind("click", on_display_click)
+    document["clearBtn"].bind("click", on_clear_click)
+    
+    # 綁定所有範例按鈕
+    for btn in document.select(".example-btn"):
+        btn.bind("click", on_example_click)
+    
+    # 輸入框回車事件
+    def on_input_enter(ev):
+        if ev.key == 'Enter':
+            on_display_click(ev)
+    
+    document["textInput"].bind("keypress", on_input_enter)
+
+# 初始顯示範例
+def init_display():
+    display.display_text("AaBbCc")
+
+# 啟動時執行
+bind_buttons()
+init_display()
+    </script>
+</body>
+</html>
