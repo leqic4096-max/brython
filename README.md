@@ -87,5 +87,8 @@ Brython：以 Python 控制 DOM、Canvas、按鈕事件
 
 ##
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/e1946f3f-a9b7-4934-b951-7b4b51d10bb5" />
+
+
 
 
